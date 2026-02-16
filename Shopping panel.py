@@ -1,46 +1,79 @@
 
 
 ### menu
+#_______________
+from BANK import API
+import datetime
+
+# =========================
+#        TRAIN
+# =========================
 
 class Train:
     def __init__(self, name_train, destination, capacity, price):
         self.name_train = name_train
         self.destination = destination
-        self.capacity = capacity
+        self.ـcapacity = capacity
         self.price = price
 
-    def show_information(self):
-        information = (
-            f"Name Train: {self.name_train}\n"
-            f"Destination: {self.destination}\n"
-            f"Remaining Capacity: {self.capacity}\n"
-            f"Price: {self.price}\n"
-        )
-        return information
+    @property
+    def capacity(self):
+        return self.capacity
+    
 
-    def reduce_capacity(self, quantity):
+    def reduce_capacity(slf, quantity):
         if quantity <= 0:
             raise ValueError("Invalid ticket quantity.")
         if quantity > self.capacity:
             raise ValueError("Capacity is full or not enough seats.")
         self.capacity -= quantity
 
+def __str__(self):
+        return  (
+            f"Name Train: {self.name_train}"
+            f"Destination: {self.destination}"
+            f"Remaining Capacity: {self.capacity}"
+            f"Price: {self.price}"
+        )
+#==========================
+#    TRAIN MANAGER
+#==========================
+
+class TrainManager:
+    def __init__(self):
+        self._trains = []
+        
+    def add_train(self, train):
+        self._trains.append(train)
+
+    def get_all_trains(self):
+        for train in self._trains:
+            yield train
+
+    def find_train_by_name(self, name):
+        for train in self._trains:
+            if train.name_train == name:
+                return train
+        raise ValueError ("train not found")
 
 
+#===================
+#     WALLET
+#===================
 
-
-
-from BANK import API
 class Wallet:
     def __init__(self):
         self.__balance = 0
         self.__card = []
         self.__bank_api = API()
 
-        def get_balance(self):
+        @property
+        def balance(self):
             return self.__balance
+
+        @property
         def get_cards(self):
-            return self.__card
+            return tuple(self.__card)
         
 
         def add_money(self, card, exp_month, exp_year, password, cvv2, amount):
@@ -51,6 +84,7 @@ class Wallet:
             payment_id = self.__bank_api.pay(card, exp_month, exp_year, password, cvv2, amount)
 
             self.__balance += amount
+
             if card not in self.__cards:
                 self.__cards.append(card)
                 return payment_id
@@ -62,9 +96,51 @@ class Wallet:
                     raise ValueError("Insufficient funds.")
                 self.__balance -= amount
 
-    
+#=====================
+#    FILE WRITER
+#=====================
 
+class TicketFileWriter:
+    @staticmethod
+    def save(user_name, train, quantity, total_price):
+        now = datetime.datetime.now()
+
+        ticket_info = (
+            f"Buyer Name: {user_name}\n"
+            f"Train Name: {train.name_train}\n"
+            f"Destination: {train.destination}\n"
+            f"Ticket Count: {quantity}\n"
+            f"Total Price: {total_price}\n"
+            f"Purchase Time: {now}\n"
+            f"{'-'*40}\n"
+)
+        with open ("tickets.txt", "a" , encoding= "utf-8") as file:
+            file.write(ticket_info)
+
+#=======================
+#     TICKET SERVICE
+#=======================
+class TicketServose:
+    def __init__ (self, wallet):
+        self.wallet = waller
+
+    def by_ticket(self, user_name, train , quantity):
+        if quantity <= 0:
+            raise ValueError ("Invalid ticket quantity.")
+
+        total_price = train.price * quantity
+
+        if quantity > train.capacity:
+            raise ValueError ("Not enough capacity.")
+
+        if total_price > self.wallet.balance:
+            raise ValueError("Insufficient wallet balance.")
     
+        train.reduce_capacity(quantity)
+        self.wallet.pay(total_price)
+
+        TicketFileWriter.save(user_name, train, quantity, total_price)
+
 
 ### edit_profile
  
