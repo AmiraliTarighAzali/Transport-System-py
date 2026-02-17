@@ -3,11 +3,12 @@
 #      menu
 #================
 class UserMenu:
-    def __init__(self, user, train_manager):
+    def __init__(self, user, train_manager, user_repository):
         self.user = user
         self.train_manager = train_manager
         self.wallet = user.wallet
         self.ticket_service = TicketService(self.wallet)
+        self.profile_service = ProfileService(user, user_repository)
 
     def show(self):
         while True:
@@ -26,6 +27,26 @@ class UserMenu:
                 break
             else:
                 raise ValueError("Please try again")
+
+    def profile_menu(self):
+        print("===== Profile Menu =====")
+        print("1. View info")
+        print("2. Change full name")
+        print("3. Change phone")
+        print("4. Change password")
+
+        choice = input("Choice: ")
+
+        if choice == '1':
+            self.profile_service.view_profile()
+        elif choice == '2':
+            self.profile_service.change_full_name()
+        elif choice == '3':
+            self.profile_service.change_phone()
+        elif choice == '4':
+            self.profile_service.change_password()
+        else:
+            raise ValueError("Invalid choice.")
 
     def handle_buy(self):
         self.train_manager.exept_trains_to_file()
