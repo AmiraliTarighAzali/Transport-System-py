@@ -110,6 +110,7 @@ class TrainManager:
 #     WALLET
 #===================
 
+
 class Wallet:
     def __init__(self):
         self.__balance = 0
@@ -148,7 +149,6 @@ class Wallet:
 #=====================
 #    FILE WRITER
 #=====================
-
 class TicketFileWriter:
     @staticmethod
     def save(user_name, train, quantity, total_price):
@@ -190,8 +190,152 @@ class TicketServise:
 
         TicketFileWriter.save(user_name, train, quantity, total_price)
 
+#========================
+#       USER MODEL
+#========================
 
-### edit_profile
- 
-### logout
-    
+import re
+
+class User:
+    def __init__(self, username, password, full_name, phone, wallet):
+        self.username = username
+        self._password = password
+        self.full_name = full_name
+        self.phone = phone
+        self.wallet = wallet
+
+    def check_password(self, password):
+        return self._password == password
+
+    def change_password(self, old_password, new_password):
+        if not self.check_password(old_password):
+            raise ValueError("Current password is incorrect.")
+        self._password = new_password
+
+    def update_full_name(self, new_name):
+        self.full_name = new_name
+
+    def update_phone(self, new_phone):
+        self.phone = new_phone
+
+    def serialize(self):
+        return f"{self.username},{self._password},{self.full_name},{self.phone}\n"
+
+    def __str__(self):
+        return (
+            f"Username: {self.username}\n"
+            f"Full Name: {self.full_name}\n"
+            f"Phone: {self.phone}\n"
+            f"Wallet Balance: {self.wallet.balance}\n"
+            f"Saved Cards: {self.wallet.cards}\n"
+        )
+
+#========================
+#       VALIDATOR.           #انتزاعی
+#========================
+
+class Validator:
+
+    @staticmethod
+    def validate_phone(phone):
+        pattern = r"^09\d{9}$"
+        if not re.match(pattern, phone):
+            raise ValueError("Phone must start with 09 and be 11 digits.")
+
+    @staticmethod
+    def validate_password(password):
+        pattern = r"^(?=.*[A-Z])(?=.*\d).{6,}$"
+        if not re.match(pattern, password):
+            raise ValueError(
+                "Password must be at least 6 chars, include 1 uppercase and 1 digit."
+            )
+
+#============================
+#       FILE USER REPOSITORY 
+#============================
+
+class FileUserRepository(UserRepository):
+
+    def __init__(self, filename="users.txt"):
+        self.filename = filename
+
+    def save(self, user):
+        with open(self.filename, "a", encoding="utf-8") as f:
+            f.write(user.serialize())
+
+    def update(self, updated_user):
+        users = []
+
+        try:
+            with open(self.filename, "r", encoding="utf-8") as f:
+                users = f.readlines()
+        except FileNotFoundError:
+            pass
+
+        with open(self.filename, "w", encoding="utf-8") as f:
+            for line in users:
+                username = line.split(",")[0]
+                if username == updated_user.username:
+                    f.write(updated_user.serialize())
+                else:
+                    f.write(line)
+
+
+#============================
+#       DECORATOR
+#============================
+
+def safe_action(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except ValueError as e:
+            raise("Error:", e)
+    return wrapper
+
+#==================================
+#        EDIT PROFILE SECTION
+#==================================
+
+class ProfileService:
+
+    def __init__(self, user, repository):
+        self.user = user
+        self.repository = repository
+
+    @safe_action
+    def view_profile(self):
+        print("\n--- User Information ---")
+        print(self.user)
+
+    @safe_action
+    def change_full_name(self):
+        new_name = input("New full name: ")
+        self.user.update_full_name(new_name)
+        self.repository.update(self.user)
+        print("Full name updated successfully.")
+
+    @safe_action
+    def change_phone(self):
+        new_phone = input("New phone: ")
+        Validator.validate_phone(new_phone)
+        self.user.update_phone(new_phone)
+        self.repository.update(self.user)
+        print("Phone updated successfully.")
+
+    @safe_action
+    def change_password(self):
+        old = input("Current password: ")
+        new = input("New password: ")
+        Validator.validate_password(new)
+        self.user.change_password(old, new)
+        self.repository.update(self.user)
+        print("Password changed successfully.")
+
+#==================================
+#       LOGOUT SECTION
+#==================================
+
+    def logout(self):
+        print("Saving user data...")
+        print("Logged out successfully.")
