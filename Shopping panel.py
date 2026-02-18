@@ -34,6 +34,7 @@ class UserMenu:
         print("2. Change full name")
         print("3. Change phone")
         print("4. Change password")
+        print("5. View transactions")
 
         choice = input("Choice: ")
 
@@ -45,6 +46,8 @@ class UserMenu:
             self.profile_service.change_phone()
         elif choice == '4':
             self.profile_service.change_password()
+        elif choice == '5':
+            self.profile_service.view_transactions()
         else:
             raise ValueError("Invalid choice.")
 
@@ -133,17 +136,19 @@ class TrainManager:
 
 
 class Wallet:
-    def __init__(self):
+    def __init__(self, username):
         self.__balance = 0
-        self.__card = []
+        self.__cards = []
         self.__bank_api = API()
+        self.__username = username
+        self.__transaction_repo = TransactionRepository()
 
     @property
     def balance(self):
         return self.__balance
 
     @property
-    def get_cards(self):
+    def cards(self):
         return tuple(self.__card)
     
 
@@ -158,6 +163,10 @@ class Wallet:
 
         if card not in self.__cards:
             self.__cards.append(card)
+
+        transaction = Transaction(self.__username, amount, "charge")
+        self.__transaction_repo.save(transaction)
+
         return payment_id
 
     def pay(self, amount):
@@ -166,6 +175,9 @@ class Wallet:
         if amount > self.__balance:
             raise ValueError("Insufficient funds.")
         self.__balance -= amount
+        transaction = Transaction(self.__username, amount, "payment")
+        self.__transaction_repo.save(transaction)
+
 
 #=====================
 #    FILE WRITER
@@ -326,7 +338,7 @@ class ProfileService:
 
     @safe_action
     def view_profile(self):
-        print("\n--- User Information ---")
+        print("====== User Information ====")
         print(self.user)
 
     @safe_action
@@ -357,6 +369,48 @@ class ProfileService:
 #       LOGOUT SECTION
 #==================================
 
-    def logout(self):
-        print("Saving user data...")
-        print("Logged out successfully.")
+def logout(self):
+    print("Saving user data...")
+    print("Logged out successfully.")
+
+
+# ====== NEW: TRANSACTION MODEL ======
+
+import datetime
+
+class Transaction:
+    def __init__(self, username, amount, transaction_type):
+        self.username = username
+        self.amount = amount
+        self.transaction_type = transaction_type
+        self.timestamp = datetime.datetime.now()
+
+    def serialize(self):
+        return (
+            f"Type: {self.transaction_type} | "
+            f"Amount: {self.amount} | "
+            f"Date: {self.timestamp.strftime('%Y-%m-%d')} | "
+            f"Time: {self.timestamp.strftime('%H:%M:%S')}\n"
+        )
+
+# ====== NEW: TRANSACTION REPOSITORY ======
+
+class TransactionRepository:
+
+    def save(self, transaction: Transaction):
+        filename = f"{transaction.username}_transactions.txt"
+
+        with open(filename, "a", encoding="utf-8") as f:
+            f.write(transaction.serialize())
+# ====== NEW: VIEW TRANSACTIONS ======
+
+@safe_action
+def view_transactions(self):
+    filename = f"{self.user.username}_transactions.txt"
+
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            print("===== Recent Transactions =====")
+            print(f.read())
+    except FileNotFoundError:
+        print("No transactions found.")
