@@ -1,321 +1,291 @@
+# =========================
+# Main System
+# =========================
 
-class User:
-    """کلاس پایه برای کاربران"""
-
-    def __init__(self, username, password, first_name, last_name, email):
-        self.username = username
-        self.password = password
-        self.first_name = first_name
-        self.last_name = last_name
-        self.email = email
-
-    def get_full_name(self):
-        return f"{self.first_name} {self.last_name}"
+from utils.file_storage import FileStorage
+from utils.validators import Validators
+from utils.password_hasher import PasswordHasher
+from models.passenger import Passenger
+from models.employee import Employee
+from services.admin_panel import AdminPanel
+from services.employee_panel import EmployeePanel
+from services.user_panel import UserPanel
 
 
-class Admin(User):
+class RailwaySystem:
+    ADMIN_USERNAME = "Admin_Train"
+    ADMIN_PASSWORD = "Pass_Train"
+
     def __init__(self):
-        super().__init__("Admin_Train", "Pass_Train", "Admin", "User", "admin@train.com")
+        self.storage = FileStorage()
 
-    def show_menu(self):
-        """نمایش منوی ادمین"""
-        print("\n" + "="*50)
-        print("پنل مدیریت".center(50))
-        print("="*50)
-        print("1. اضافه کردن کارمند جدید")
-        print("2. حذف کارمند")
-        print("3. مشاهده لیست کارمندان")
-        print("4. خروج از پنل مدیریت")
-        print("-"*50)
+        self.employees = []  # list[Employee]
+        self.users = []      # list[Passenger]
+        self.lines = {}      # name -> Line
+        self.trains = {}     # id -> Train
 
+        self.admin_panel = AdminPanel(self)
 
-class Employee(User):
-    """کلاس کارمندان قطار"""
+        # load employees & users from file
+        self.load_all()
 
-    def __init__(self, username, password, first_name, last_name, email):
-        super().__init__(username, password, first_name, last_name, email)
-
-
-class EmployeeManager:
-    def __init__(self):
+    # ---------- Load/Save ----------
+    def load_all(self):
+        # employees
+        emp_items = self.storage.read_all_json_lines(
+            self.storage.employees_file)
         self.employees = []
+        for e in emp_items:
+            try:
+                self.employees.append(Employee(
+                    e["first"], e["last"], e["username"], e["salt"], e["password_hash"], e["email"]
+                ))
+            except:
+                pass
 
-    def email_exists(self, email):
-        """بررسی تکراری بودن ایمیل"""
-        for emp in self.employees:
-            if emp.email == email:
-                return True
-        return False
+        # users
+        user_items = self.storage.read_all_json_lines(self.storage.users_file)
+        self.users = []
+        for u in user_items:
+            try:
+                p = Passenger(
+                    u["username"], u["salt"], u["password_hash"],
+                    u["full_name"], u["email"], u.get("phone", "")
+                )
+                self.users.append(p)
+            except:
+                pass
 
-    def username_exists(self, username):
-        """بررسی تکراری بودن نام کاربری"""
-        for emp in self.employees:
-            if emp.username == username:
-                return True
-        return False
+    def save_employee_to_file(self, emp: Employee):
+        self.storage.append_json_line(self.storage.employees_file, {
+            "first": emp.first,
+            "last": emp.last,
+            "username": emp.username,
+            "salt": emp.salt,
+            "password_hash": emp.password_hash,
+            "email": emp.email
+        })
 
-    def validate_password(self, password):
-        """بررسی رمز عبور - باید شامل حرف، عدد و @ یا & باشه"""
-        has_letter = False
-        has_number = False
-        has_special = False
+    def save_user_to_file(self, user: Passenger):
+        self.storage.append_json_line(self.storage.users_file, {
+            "username": user.username,
+            "salt": user.salt,
+            "password_hash": user.password_hash,
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone": user.phone
+        })
 
-        for char in password:
-            if char.isalpha():
-                has_letter = True
-            elif char.isdigit():
-                has_number = True
-            elif char == '@' or char == '&':
-                has_special = True
-
-        if has_letter and has_number and has_special:
+    # ---------- Existence checks ----------
+    def username_exists_everywhere(self, username):
+        if username == self.ADMIN_USERNAME:
             return True
+        for e in self.employees:
+            if e.username == username:
+                return True
+        for u in self.users:
+            if u.username == username:
+                return True
         return False
 
-    def validate_email(self, email):
-        """بررسی ایمیل - باید @ و نقطه داشته باشه"""
-        if '@' not in email:
-            return False
+    def employee_email_exists(self, email):
+        for e in self.employees:
+            if e.email == email:
+                return True
+        return False
 
-        at_index = 0
-        for i in range(len(email)):
-            if email[i] == '@':
-                at_index = i
-                break
+    def add_employee(self, emp: Employee):
+        self.employees.append(emp)
+        self.save_employee_to_file(emp)
 
-        # بعد از @ باید یه نقطه باشه
-        has_dot_after_at = False
-        for i in range(at_index + 1, len(email)):
-            if email[i] == '.':
-                has_dot_after_at = True
-                break
+    def remove_employee(self, username):
+        self.employees = [e for e in self.employees if e.username != username]
+        items = []
+        for e in self.employees:
+            items.append({
+                "first": e.first, "last": e.last, "username": e.username,
+                "salt": e.salt, "password_hash": e.password_hash, "email": e.email
+            })
+        self.storage.write_all_json_lines(self.storage.employees_file, items)
 
-        return has_dot_after_at
-
-    def add_employee(self):
-        """اضافه کردن کارمند جدید"""
-        print("\n" + "-"*40)
-        print("فرم ثبت کارمند جدید")
-        print("-"*40)
-
+    # ---------- Menus ----------
+    def start(self):
         while True:
-            first_name = input("نام: ").strip()
-            if first_name == "0":
+            print("\n" + "=" * 50)
+            print("RAILWAY TRANSPORT SYSTEM")
+            print("=" * 50)
+            print("1. Admin Login")
+            print("2. Employee Login")
+            print("3. User Menu")
+            print("4. Exit")
+            ch = input("Choose: ").strip()
+
+            if ch == "1":
+                self.admin_login()
+            elif ch == "2":
+                self.employee_login()
+            elif ch == "3":
+                self.user_menu()
+            elif ch == "4":
+                print("Goodbye!")
                 return
+            else:
+                print("Wrong choice!")
 
-            last_name = input("نام خانوادگی: ").strip()
-            email = input("ایمیل: ").strip()
-
-            # اعتبارسنجی ایمیل
-            if not self.validate_email(email):
-                print("ایمیل نامعتبر است! ایمیل باید دارای @ و نقطه باشد.")
-                again = input("ادامه؟ (1 برای ادامه، 0 برای بازگشت): ")
-                if again == "0":
-                    return
-                continue
-
-            # بررسی تکراری نبودن ایمیل
-            if self.email_exists(email):
-                print("این ایمیل قبلاً ثبت شده است!")
-                again = input("ادامه؟ (1 برای ادامه، 0 برای بازگشت): ")
-                if again == "0":
-                    return
-                continue
-
-            username = input("نام کاربری: ").strip()
-
-            # بررسی تکراری نبودن نام کاربری
-            if self.username_exists(username):
-                print("این نام کاربری قبلاً ثبت شده است!")
-                again = input("ادامه؟ (1 برای ادامه، 0 برای بازگشت): ")
-                if again == "0":
-                    return
-                continue
-
-            password = input("رمز عبور: ").strip()
-
-            # اعتبارسنجی رمز عبور
-            if not self.validate_password(password):
-                print("رمز عبور باید شامل حرف، عدد و @ یا & باشد!")
-                again = input("ادامه؟ (1 برای ادامه، 0 برای بازگشت): ")
-                if again == "0":
-                    return
-                continue
-
-            # ساخت کارمند جدید
-            new_employee = Employee(
-                username, password, first_name, last_name, email)
-            self.employees.append(new_employee)
-            print("کارمند با موفقیت اضافه شد!")
-
-            choice = input("1 برای ثبت کارمند دیگر، 0 برای بازگشت: ")
-            if choice == "0":
-                return
-
-    def remove_employee(self):
-        """حذف کارمند با نام کاربری"""
-        print("\n" + "-"*40)
-        print("حذف کارمند")
-        print("-"*40)
-
-        if len(self.employees) == 0:
-            print("هیچ کارمندی برای حذف وجود ندارد!")
-            input("Enter بزنید تا برگردید...")
+    def admin_login(self):
+        print("\n--- Admin Login --- (0 back)")
+        username = input("Username: ").strip()
+        if username == "0":
+            return
+        password = input("Password: ").strip()
+        if password == "0":
             return
 
-        while True:
-            username = input(
-                "نام کاربری کارمند مورد نظر (0 برای بازگشت): ").strip()
+        if username == self.ADMIN_USERNAME and password == self.ADMIN_PASSWORD:
+            print("Welcome Admin!")
+            self.admin_panel.menu()
+        else:
+            print("Wrong username or password!")
 
+    def employee_login(self):
+        print("\n--- Employee Login --- (0 back)")
+        username = input("Username: ").strip()
+        if username == "0":
+            return
+        password = input("Password: ").strip()
+        if password == "0":
+            return
+
+        found = None
+        for e in self.employees:
+            if e.username == username and PasswordHasher.verify(password, e.salt, e.password_hash):
+                found = e
+                break
+
+        if not found:
+            print("Wrong username or password!")
+            return
+
+        print(f"Welcome {found.first}!")
+        EmployeePanel(self, found).menu()
+
+    def user_menu(self):
+        while True:
+            print("\n--- USER MENU ---")
+            print("1. Register")
+            print("2. Login")
+            print("3. Back")
+            ch = input("Choose: ").strip()
+
+            if ch == "1":
+                self.user_register()
+            elif ch == "2":
+                self.user_login()
+            elif ch == "3":
+                return
+            else:
+                print("Wrong choice!")
+
+    def user_register(self):
+        print("\n--- Register --- (0 back)")
+        full_name = self._ask_nonempty("Full name: ")
+        if full_name is None:
+            return
+
+        # username
+        while True:
+            username = input("Username: ").strip()
             if username == "0":
                 return
-
-            # پیدا کردن کارمند
-            found_index = -1
-            for i in range(len(self.employees)):
-                if self.employees[i].username == username:
-                    found_index = i
-                    break
-
-            if found_index == -1:
-                print("این نام کاربری یافت نشد!")
+            if not Validators.valid_username(username):
+                print("Invalid username (3-30, letters/numbers/_).")
                 continue
+            if self.username_exists_everywhere(username):
+                print("Username already exists!")
+                continue
+            break
 
-            # نمایش اطلاعات کارمند
-            emp = self.employees[found_index]
-            print(f"\nکارمند پیدا شد: {emp.get_full_name()} - {emp.email}")
-            confirm = input("آیا مطمئن هستید؟ (y/n): ").lower()
-
-            if confirm == 'y':
-                del self.employees[found_index]
-                print(" کارمند با موفقیت حذف شد!")
-                return
-            else:
-                print("عملیات لغو شد.")
-                return
-
-    def show_employees(self):
-        """نمایش لیست کارمندان"""
-        print("\n" + "="*50)
-        print("لیست کارمندان".center(50))
-        print("="*50)
-
-        if len(self.employees) == 0:
-            print("هیچ کارمندی ثبت نشده است.")
-        else:
-            for i, emp in enumerate(self.employees, 1):
-                print(f"\n{i}. {emp.get_full_name()}")
-                print(f"   نام کاربری: {emp.username}")
-                print(f"   ایمیل: {emp.email}")
-                print("   " + "-"*30)
-
-        input("\nEnter بزنید تا برگردید...")
-
-
-class LoginSystem:
-    """سیستم ورود به پنل‌ها"""
-
-    @staticmethod
-    def admin_login():
-        """ورود ادمین با اطلاعات ثابت"""
-        print("\n" + "="*40)
-        print("ورود ادمین".center(40))
-        print("="*40)
-
-        max_attempts = 3
-        attempts = 0
-
-        while attempts < max_attempts:
-            username = input("نام کاربری: ").strip()
-            password = input("رمز عبور: ").strip()
-
-            if username == "Admin_Train" and password == "Pass_Train":
-                print("ورود موفق! خوش آمدید.")
-                return True
-            else:
-                attempts += 1
-                remaining = max_attempts - attempts
-                print(
-                    f" نام کاربری یا رمز عبور اشتباه است! {remaining} تلاش دیگر باقی است.")
-
-                if attempts < max_attempts:
-                    go_back = input(
-                        "0 برای بازگشت به منوی اصلی، Enter برای ادامه: ")
-                    if go_back == "0":
-                        return False
-
-        print("تعداد تلاش‌های مجاز تمام شد!")
-        return False
-
-
-class MainMenu:
-    """منوی اصلی برنامه"""
-
-    def __init__(self):
-        self.admin = Admin()
-        self.employee_manager = EmployeeManager()
-        self.login_system = LoginSystem()
-
-    def show_start_menu(self):
-        """نمایش منوی شروع"""
-        print("\n" + "="*60)
-        print(" سیستم مدیریت حمل و نقل ریلی".center(60))
-        print("="*60)
-        print("1. ورود ادمین کل")
-        print("2. ورود کارمند قطار")
-        print("3. ورود کاربر عادی")
-        print("4. خروج")
-        print("-"*60)
-
-    def run(self):
-        """اجرای اصلی برنامه"""
+        # email
         while True:
-            self.show_start_menu()
-            choice = input("انتخاب شما: ").strip()
+            email = input("Email: ").strip()
+            if email == "0":
+                return
+            if not Validators.valid_email(email):
+                print("Invalid email format.")
+                continue
+            # ایمیل تکراری برای یوزرها
+            if any(u.email == email for u in self.users):
+                print("Email already registered!")
+                continue
+            break
 
-            if choice == "1":
-                # پنل ادمین
-                if self.login_system.admin_login():
-                    self.admin_panel()
+        # phone (optional)
+        while True:
+            phone = input("Phone (optional, 09xxxxxxxxx): ").strip()
+            if phone == "0":
+                return
+            if phone == "":
+                break
+            if not Validators.valid_phone(phone):
+                print("Invalid phone.")
+                continue
+            break
 
-            elif choice == "2":
-                print("\n این بخش در حال پیاده‌سازی است...")
-                input("Enter بزنید تا برگردید...")
+        # password
+        while True:
+            password = input("Password (8+ with letter+number+@/&): ").strip()
+            if password == "0":
+                return
+            if not Validators.valid_password(password):
+                print("Invalid password format.")
+                continue
+            break
 
-            elif choice == "3":
-                print("\n این بخش در حال پیاده‌سازی است...")
-                input("Enter بزنید تا برگردید...")
+        salt = PasswordHasher.make_salt()
+        ph = PasswordHasher.hash_password(password, salt)
 
-            elif choice == "4":
-                print("\n خداحافظ!")
+        new_user = Passenger(username, salt, ph, full_name, email, phone)
+        self.users.append(new_user)
+        self.save_user_to_file(new_user)
+
+        print("Registered successfully!")
+
+    def user_login(self):
+        print("\n--- User Login --- (0 back)")
+        username = input("Username: ").strip()
+        if username == "0":
+            return
+        password = input("Password: ").strip()
+        if password == "0":
+            return
+
+        found = None
+        for u in self.users:
+            if u.username == username and PasswordHasher.verify(password, u.salt, u.password_hash):
+                found = u
                 break
 
-            else:
-                print(" انتخاب نامعتبر!")
+        if not found:
+            print("Wrong username or password!")
+            return
 
-    def admin_panel(self):
-        """پنل مدیریت ادمین"""
+        print(f"Welcome {found.full_name}!")
+        UserPanel(self, found).menu()
+
+    def _ask_nonempty(self, prompt):
         while True:
-            self.admin.show_menu()
-            choice = input("انتخاب شما: ").strip()
-
-            if choice == "1":
-                self.employee_manager.add_employee()
-
-            elif choice == "2":
-                self.employee_manager.remove_employee()
-
-            elif choice == "3":
-                self.employee_manager.show_employees()
-
-            elif choice == "4":
-                print("خروج از پنل مدیریت...")
-                break
-
-            else:
-                print(" انتخاب نامعتبر!")
+            v = input(prompt).strip()
+            if v == "0":
+                return None
+            if not v:
+                print("Cannot be empty!")
+                continue
+            return v
 
 
+# =========================
+# Run
+# =========================
 if __name__ == "__main__":
-    app = MainMenu()
-    app.run()
+    system = RailwaySystem()
+    system.start()
