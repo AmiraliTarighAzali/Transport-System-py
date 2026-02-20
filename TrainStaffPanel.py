@@ -6,7 +6,11 @@ class EmployeePanel:
 
     def menu(self):
         while True:
-            try:
+            choice=input("for return to employee panel press R: ").strip().lower()
+            if choice=="r":
+                #display main panel
+                pass
+            else:
                 print(
                     "Here is Train Staff Panel. Please choose an action:\n"
                     "1. Add Line\n"
@@ -19,35 +23,63 @@ class EmployeePanel:
                     "8. Show Trains\n"
                     "9. Logout"
                 )
-
-                request_num = input()
+                request_num = input("Please enter your choice: ").strip()
 
                 if request_num not in ["1","2","3","4","5","6","7","8","9"]:
                     raise ValueError("No valid input.")
-                
+
                 match request_num:
                     case "1":
-                        self.addLine()
+                        try:
+                            self.addLine()
+                        except Exception as e:
+                            print(f"Error in add Line method: {e}")
+                            continue
                     case "2":
-                        self.UpdateLine()
+                        try:
+                            self.UpdateLine()
+                        except Exception as e:
+                            print(f"Error in UpdateLine method: {e}")
+                            continue
                     case "3":
-                        self.RemoveLine()
+                        try:
+                            self.RemoveLine()
+                        except Exception as e:
+                            print(f"Error in RemoveLine method: {e}")    
+                            continue
                     case "4":
-                        self.ShowLines()
+                        try:
+                            self.RemoveLine()
+                        except Exception as e:
+                            print(f"Error in ShowLines method: {e}")  
+                            continue
                     case "5":
-                        self.add_train()
+                        try:
+                            self.add_train()
+                        except Exception as e:
+                            print(f"Error in add_train method: {e}") 
+                            continue
                     case "6":
-                        self.update_train_info()
+                        try:
+                            self.update_train_info()
+                        except Exception as e:
+                            print(f"Error in update_train_info method: {e}") 
+                            continue
                     case "7":
-                        self.delete_train()
+                        try:
+                            self.delete_train()
+                        except Exception as e:
+                            print(f"Error in delete_train method: {e}") 
+                            continue
                     case "8":
-                        self.show_trains()
+                        try:
+                            self.show_trains()
+                        except Exception as e:
+                            print(f"Error in show_trains method: {e}") 
+                            continue
                     case "9":
                         break
-
-            except Exception as e:
-                print(f"Error: {e}")
-
+                    
     #Line name must be alphabets only.
     #Origin name must be alphabets only.
     #Destination name must be alphabets only.
@@ -111,8 +143,8 @@ class EmployeePanel:
                     raise ValueError('Number of Stations can not be empty.')
                 
                 countsStation = int(countsStation)
-                if countsStation < 0:
-                    raise ValueError('Number of Stations can not be negative.')
+                if countsStation <= 0:
+                    raise ValueError('Number of Stations can not be negative or zero.')
                 
                 stations = []
                 for i in range(countsStation):
@@ -154,13 +186,13 @@ class EmployeePanel:
                 if name not in self.Line_dict:
                     raise ValueError("Line with this name does not exist.")
                 
-                selectedName= self.Line_dict[name]["name_line"]
+                #selectedName= self.Line_dict[name]["name_line"]
         
-                print(f"Line Name: {self.Line_dict[selectedName]['name_line']}")
-                print(f"Origin: {self.Line_dict[selectedName]['origin']}")
-                print(f"Destination: {self.Line_dict[selectedName]['destination']}")
-                print(f"Number of Stations: {self.Line_dict[selectedName]['countsStation']}")
-                print(f"Station Names: {', '.join(self.Line_dict[selectedName]['stations'])}")      
+                print(f"Line Name: {self.Line_dict[name]['name_line']}")
+                print(f"Origin: {self.Line_dict[name]['origin']}")
+                print(f"Destination: {self.Line_dict[name]['destination']}")
+                print(f"Number of Stations: {self.Line_dict[name]['countsStation']}")
+                print(f"Station Names: {', '.join(self.Line_dict[name]['stations'])}")      
 
                 break
             except Exception as e:
@@ -199,8 +231,8 @@ class EmployeePanel:
                             raise TypeError("New name must be alphabets only.")
                         
                         
-                        self.Line_dict[selectedName]["name_line"] = new_name
-                        self.Line_dict[new_name] = self.Line_dict.pop(selectedName)
+                        self.Line_dict[name]["name_line"] = new_name
+                        self.Line_dict[new_name] = self.Line_dict.pop(name)
                         print("Line name updated successfully.")
 
                     case "2":
@@ -208,13 +240,13 @@ class EmployeePanel:
                         if not new_origin:
                             raise ValueError('The new origin can not be empty.')
                             
-                        if new_origin == self.Line_dict[selectedName]["origin"]:
+                        if new_origin == self.Line_dict[name]["origin"]:
                             raise ValueError("The new origin is same as old origin.")
    
                         if not new_origin.isalpha():
                             raise TypeError("New origin must be alphabets only.")
 
-                        self.Line_dict[selectedName]["origin"] = new_origin
+                        self.Line_dict[name]["origin"] = new_origin
                         print("Line origin updated successfully.")
 
                     case "3":
@@ -222,13 +254,13 @@ class EmployeePanel:
                         if not new_destination:
                             raise ValueError('The destination can not be empty.')
                             
-                        if new_destination == self.Line_dict[selectedName]["destination"]:
+                        if new_destination == self.Line_dict[name]["destination"]:
                             raise ValueError("The new destination is same as old destination.")
                     
                         if not new_destination.isalpha():
                             raise TypeError("New destination must be alphabets only.")
 
-                        self.Line_dict[selectedName]["destination"] = new_destination
+                        self.Line_dict[name]["destination"] = new_destination
                         print("Line destination updated successfully.")
 
                     case "4":
@@ -237,13 +269,13 @@ class EmployeePanel:
                             raise ValueError('The number of stations can not be empty.')
                         
                         new_count_state = int(new_count_state)
-                        if new_count_state == self.Line_dict[selectedName]["countsStation"]:
+                        if new_count_state == self.Line_dict[name]["countsStation"]:
                             raise ValueError("The number of stations is same as old number of stations.")
 
                         if new_count_state < 0:
                             raise ValueError('Number of Stations can not be negative.')
   
-                        self.Line_dict[selectedName]["countsStation"] = new_count_state
+                        self.Line_dict[name]["countsStation"] = new_count_state
 
                         new_stations=[]
 
@@ -258,12 +290,12 @@ class EmployeePanel:
                          
                             new_stations.append(temp_station) 
 
-                        self.Line_dict[selectedName]["stations"] =  new_stations
+                        self.Line_dict[name]["stations"] =  new_stations
                         print("Number and name of stations updated successfully.")
 
                     case "5":
                         new_stations = []
-                        count_state = int(self.Line_dict[selectedName]["countsStation"])
+                        count_state = int(self.Line_dict[name]["countsStation"])
 
                         for i in range(count_state):
                             temp_station = input(f'Enter Station {i+1}: ').strip().lower()
@@ -275,7 +307,7 @@ class EmployeePanel:
                                raise ValueError('This station name already exists. please enter another station name.')
                             new_stations.append(temp_station) 
                             
-                        self.Line_dict[selectedName]["stations"] = new_stations
+                        self.Line_dict[name]["stations"] = new_stations
                         print("Line stations updated successfully.")
 
                 break
@@ -319,8 +351,9 @@ class EmployeePanel:
             print("There is no line.")  
             return
         else:
-            for l in self.Line_dict:
-                print(l, end = "\n")
+            for v in self.Line_dict.values():
+                print( v, end="\n")
+                
             return
 
 
@@ -613,8 +646,8 @@ class EmployeePanel:
             print("No train available.")
             return
 
-        for train_id, train in self.train_dict.items():
-            print(f"Train ID: {train_id}, {train}")
+        for train in self.train_dict.values():
+            print(train,end="\n")
 
         return
 
