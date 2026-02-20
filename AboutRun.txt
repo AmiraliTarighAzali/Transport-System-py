@@ -1,0 +1,1 @@
+You can go to the SRC folder and run the main.py file, or go to mainTest.py which has the whole project in one place and run that.
