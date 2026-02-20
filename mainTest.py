@@ -5,32 +5,6 @@ import hashlib
 import datetime
 from BANK import API
 
-class BaseTrain():
-
-    def __init__(self, train_name, train_line, mean_speed, stop_time, quality, price, capacity):
-        self.train_name = train_name
-        self.train_line = train_line
-        self.mean_speed = mean_speed
-        self.stop_time = stop_time
-        self.quality = quality
-        self.price = price
-        self.capacity = capacity
-
-    
-    def update_info(self, update_case, new_value):
-        setattr(self, update_case, new_value)
-
-
-    def __str__(self):
-        return (
-            f"Train Name: {self.train_name}, "
-            f"Train Line: {self.train_line}, "
-            f"Train Mean Speed: {self.mean_speed}, "
-            f"Train Stop Time: {self.stop_time}, "
-            f"Train Quality: {self.quality}, "
-            f"Train Price: {self.price}, "
-            f"Train Capacity: {self.capacity}")    
-
 
 # =========================
 # Regex Validators
@@ -39,7 +13,6 @@ class Validators:
     EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
     PHONE_RE = re.compile(r"^09\d{9}$")  # 11 digits, starts with 09
     USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,30}$")
-    # حداقل 8 کاراکتر + حداقل یک حرف + حداقل یک عدد + حداقل یکی از @ یا &
     PASSWORD_RE = re.compile(
         r"^(?=.*[A-Za-z])(?=.*\d)(?=.*[@&])[A-Za-z\d@&]{8,}$")
 
@@ -66,7 +39,6 @@ class Validators:
 class PasswordHasher:
     @staticmethod
     def make_salt() -> str:
-        # ساده و آماتوری ولی کافی
         return os.urandom(16).hex()
 
     @staticmethod
@@ -184,6 +156,9 @@ class Train:
         self.available -= count
         return True, "Booked"
 
+    def update_info(self, field, new_value):
+        setattr(self, field, new_value)
+
     def __str__(self):
         return f"ID:{self.train_id} | {self.name} | Line:{self.line_name} | Price:{self.price} | Seats:{self.available}/{self.capacity}"
 
@@ -207,7 +182,7 @@ class Wallet:
         self.owner_username = owner_username
         self.balance = 0
         self.cards = []
-        self.transactions = []  # فقط برای ران تایم (به علاوه فایل)
+        self.transactions = []
 
     def add_money(self, card, month, year, password, cvv2, amount):
         if amount <= 0:
@@ -261,7 +236,6 @@ class Wallet:
 class ScheduleHelper:
     @staticmethod
     def parse_time_hhmm(t: str):
-        # "08:05" -> minutes from 00:00
         parts = t.strip().split(":")
         if len(parts) != 2:
             return None
@@ -293,13 +267,11 @@ class ScheduleHelper:
         travel_min = int(round((line.distance_km / train.speed_kmh) * 60))
         stop_min = int(round(train.stop_min))
 
-        # لیست ایستگاه‌ها: origin + stations + destination
         all_stations = [line.origin] + line.stations + [line.destination]
 
         windows = {}
         current_depart = dep0
 
-        # (arrival = depart)
         windows[all_stations[0]] = (current_depart, current_depart)
 
         for i in range(1, len(all_stations)):
@@ -324,7 +296,6 @@ class ScheduleHelper:
             if old_windows is None:
                 continue
 
-            # ایستگاه مشترک‌ها
             for station in new_windows:
                 if station in old_windows:
                     a1, d1 = new_windows[station]
@@ -480,8 +451,10 @@ class EmployeePanel:
             print("3. Delete Line")
             print("4. Show Lines")
             print("5. Add Train (Bonus collision check)")
-            print("6. Show Trains")
-            print("7. Back")
+            print("6. Update Train")
+            print("7. Delete Train")
+            print("8. Show Trains")
+            print("9. Back")
             ch = input("Choose: ").strip()
 
             if ch == "1":
@@ -495,8 +468,12 @@ class EmployeePanel:
             elif ch == "5":
                 self.add_train()
             elif ch == "6":
-                self.show_trains()
+                self.update_train_info()
             elif ch == "7":
+                self.delete_train()
+            elif ch == "8":
+                self.show_trains()
+            elif ch == "9":
                 return
             else:
                 print("Wrong choice!")
@@ -539,7 +516,6 @@ class EmployeePanel:
                 continue
             break
 
-        # فاصله بین ایستگاه‌ها
         while True:
             dk = input("Distance between stations (km) e.g. 20: ").strip()
             if dk == "0":
@@ -746,7 +722,7 @@ class EmployeePanel:
             print("Invalid capacity.")
             return
 
-        new_train = BaseTrain(name, line_name, speed, stop_min, q, price, cap)
+        new_train = Train(name, line_name, speed, stop_min, q, price, cap, dep)
 
         # ===== Bonus collision check =====
         coll, msg = ScheduleHelper.has_collision(line, new_train)
@@ -767,164 +743,194 @@ class EmployeePanel:
                     f"- {st}: {ScheduleHelper.format_minutes(a)} -> {ScheduleHelper.format_minutes(d)}")
 
     def update_train_info(self):
-        print('You are updating train info.\n')
+        print("\n--- Update Train ---")
+
+        if not self.system.trains:
+            print("No trains available.")
+            return
+        print("Available trains:")
+        for tid, t in self.system.trains.items():
+            print(f"ID: {tid} | {t.name} | Line: {t.line_name}")
+
         while True:
             try:
                 train_id = input(
-                    "Enter train ID to update or press R to return to Employee Panel.\n").strip().lower()
+                    "\nEnter train ID to update (0 to back): ").strip()
 
-                if train_id == "r":
+                if train_id == "0":
                     return
 
                 if not train_id:
-                    raise ValueError("Train ID cannot be empty.")
+                    print("Train ID cannot be empty!")
+                    continue
 
                 if not train_id.isdigit():
-                    raise TypeError("Train ID must be digits only.")
+                    print("Train ID must be digits only!")
+                    continue
 
-                if train_id not in self.train_dict:
-                    raise ValueError("This train does not exist.")
+                train_id = int(train_id)
+
+                if train_id not in self.system.trains:
+                    print("Train not found!")
+                    continue
 
                 break
-            except Exception as e:
-                print(f"Error: {e}")
+            except:
+                print("Invalid input!")
 
-        t = self.train_dict[train_id]
+        train = self.system.trains[train_id]
 
         while True:
             try:
-                print("Indicate updating item or press R to return to Employee Panel.\n"
-                      "Press 1 to update Train name\n"
-                      "Press 2 to update Train Line\n"
-                      "Press 3 to update Train Mean Speed\n"
-                      "Press 4 to update Train Stop Time\n"
-                      "Press 5 to update Train Quality\n"
-                      "Press 6 to update Train Price\n"
-                      "Press 7 to update Train Capacity\n")
+                print("\nWhat to update?")
+                print("1. Name")
+                print("2. Line")
+                print("3. Speed")
+                print("4. Stop Time")
+                print("5. Quality")
+                print("6. Price")
+                print("7. Capacity")
+                print("8. Back")
 
-                update_num = input().strip().lower()
+                choice = input("Choose: ").strip()
 
-                if update_num == "r":
+                if choice == "8":
                     return
 
-                if update_num not in ["1", "2", "3", "4", "5", "6", "7"]:
-                    raise ValueError("No valid input.")
+                if choice not in ["1", "2", "3", "4", "5", "6", "7"]:
+                    print("Invalid choice!")
+                    continue
 
-                match update_num:
-                    case "1":
-                        new_value = input(
-                            "Enter new value for train name: ").strip().lower()
+                if choice == "1":  # Name
+                    new = input("New name: ").strip()
+                    if new:
+                        train.update_info("name", new)
+                        print("Name updated!")
 
-                        if not new_value:
-                            raise ValueError("New value cannot be empty.")
+                elif choice == "2":  # Line
+                    print("Available lines:", ", ".join(
+                        self.system.lines.keys()))
+                    new = input("New line: ").strip().lower()
+                    if new in self.system.lines:
+                        train.update_info("line_name", new)
+                        print("Line updated!")
+                    else:
+                        print("Line not found!")
 
-                        if not new_value.isalpha():
-                            raise TypeError(
-                                "New value must be alphabets only.")
+                elif choice == "3":  # Speed
+                    try:
+                        new = float(input("New speed (km/h): "))
+                        if new > 0:
+                            train.update_info("speed_kmh", new)
+                            print("Speed updated!")
+                        else:
+                            print("Speed must be positive!")
+                    except:
+                        print("Invalid number!")
 
-                        t.update_info("train_name", new_value)
-                        print("Train name updated successfully.")
+                elif choice == "4":  # Stop Time
+                    try:
+                        new = float(input("New stop time (min): "))
+                        if new >= 0:
+                            train.update_info("stop_min", new)
+                            print("Stop time updated!")
+                        else:
+                            print("Stop time cannot be negative!")
+                    except:
+                        print("Invalid number!")
 
-                    case "2":
-                        print("Available train lines:",
-                              ", ".join(self.Line_dict.keys()))
-                        new_value = input(
-                            "Enter new value for train line: ").strip().lower()
+                elif choice == "5":  # Quality
+                    new = input("New quality (A/B/C): ").strip().upper()
+                    if new in ["A", "B", "C"]:
+                        train.update_info("quality", new)
+                        print("Quality updated!")
+                    else:
+                        print("Quality must be A/B/C!")
 
-                        if not new_value:
-                            raise ValueError("New value cannot be empty.")
+                elif choice == "6":  # Price
+                    try:
+                        new = float(input("New price: "))
+                        if new >= 0:
+                            train.update_info("price", new)
+                            print("Price updated!")
+                        else:
+                            print("Price cannot be negative!")
+                    except:
+                        print("Invalid number!")
 
-                        if new_value not in self.Line_dict.keys():
-                            raise ValueError("This line does not exist.")
+                elif choice == "7":  # Capacity
+                    try:
+                        new = int(input("New capacity: "))
+                        if new > 0:
+                            old_cap = train.capacity
+                            train.update_info("capacity", new)
+                            # آپدیت available proportionate to new capacity
+                            if train.available == old_cap:
+                                train.available = new
+                            print("Capacity updated!")
+                        else:
+                            print("Capacity must be positive!")
+                    except:
+                        print("Invalid number!")
 
-                        t.update_info("train_line", new_value)
-                        print("Train line updated successfully.")
+                again = input(
+                    "\nUpdate another field? (y/n): ").strip().lower()
+                if again != 'y':
+                    return
 
-                    case "3":
-                        new_value = float(
-                            input("Enter new value for train mean speed: ").strip())
-
-                        if new_value < 0:
-                            raise ValueError("New value cannot be negative.")
-
-                        t.update_info("mean_speed", new_value)
-                        print("Train mean speed updated successfully.")
-
-                    case "4":
-                        new_value = float(
-                            input("Enter new value for train stop time: ").strip())
-
-                        if new_value < 0:
-                            raise ValueError("New value cannot be negative.")
-
-                        t.update_info("stop_time", new_value)
-                        print("Train stop time updated successfully.")
-
-                    case "5":
-                        new_value = input(
-                            "Enter New value for train quality(A/B/C): ").strip().upper()
-                        if not new_value:
-                            raise ValueError("New value cannot be empty.")
-
-                        if new_value not in ["A", "B", "C"]:
-                            raise TypeError(
-                                "New value must be A, B, or C only.")
-
-                        t.update_info("quality", new_value)
-                        print("Train quality updated successfully.")
-
-                    case "6":
-                        new_value = float(
-                            input("Enter new value for train price: ").strip())
-
-                        if new_value < 0:
-                            raise ValueError("New value cannot be negative.")
-
-                        t.update_info("price", new_value)
-                        print("Train price updated successfully.")
-
-                    case "7":
-                        new_value = int(
-                            input("Enter new value for train capacity: ").strip())
-
-                        if new_value < 0:
-                            raise ValueError("New value cannot be negative.")
-
-                        t.update_info("capacity", new_value)
-                        print("Train capacity updated successfully.")
-
-                break
             except Exception as e:
                 print(f"Error: {e}")
 
     def delete_train(self):
-        print('You are deleting a train.\n')
+        print("\n--- Delete Train ---")
+
+        if not self.system.trains:
+            print("No trains available.")
+            return
+
+        print("Available trains:")
+        for tid, t in self.system.trains.items():
+            print(f"ID: {tid} | {t.name} | Line: {t.line_name}")
 
         while True:
             try:
-                if not self.train_dict:
-                    print("There is no train to delete.")
-                    return
-
                 train_id = input(
-                    "Enter train ID to remove or press R to return to Employee Panel.\n").strip().lower()
+                    "\nEnter train ID to delete (0 to back): ").strip()
 
-                if train_id == "r":
+                if train_id == "0":
                     return
 
                 if not train_id:
-                    raise ValueError("Train ID cannot be empty.")
+                    print("Train ID cannot be empty!")
+                    continue
 
                 if not train_id.isdigit():
-                    raise TypeError("Train ID must be digits only.")
+                    print("Train ID must be digits only!")
+                    continue
 
-                if train_id not in self.train_dict:
-                    raise ValueError("Train with this ID does not exist.")
+                train_id = int(train_id)
 
-                del self.train_dict[train_id]
-                print(f"Train ID {train_id} deleted successfully.")
+                if train_id not in self.system.trains:
+                    print("Train not found!")
+                    continue
+
+                train = self.system.trains[train_id]
+                print(f"\nTrain to delete: {train}")
+
+                confirm = input("Are you sure? (y/n): ").strip().lower()
+
+                if confirm == 'y':
+                    line_name = train.line_name
+                    if line_name in self.system.lines:
+                        line = self.system.lines[line_name]
+                        line.trains = [
+                            t for t in line.trains if t.train_id != train_id]
+
+                    del self.system.trains[train_id]
+                    print(f"Train ID {train_id} deleted successfully!")
 
                 break
+
             except Exception as e:
                 print(f"Error: {e}")
 
@@ -1007,7 +1013,6 @@ class UserPanel:
             card, month_i, year_i, password, cvv2, amount)
         print(msg)
 
-        # ===== Bonus: save transaction to file + time/date =====
         if ok and self.user.wallet.transactions:
             last = self.user.wallet.transactions[-1]
             self.system.storage.append_json_line(
