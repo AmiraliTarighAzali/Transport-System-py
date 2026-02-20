@@ -740,6 +740,168 @@ class EmployeePanel:
                 print(
                     f"- {st}: {ScheduleHelper.format_minutes(a)} -> {ScheduleHelper.format_minutes(d)}")
 
+    def update_train_info(self):
+        print('You are updating train info.\n')
+        while True:
+            try:
+                train_id = input(
+                    "Enter train ID to update or press R to return to Employee Panel.\n").strip().lower()
+
+                if train_id == "r":
+                    return
+
+                if not train_id:
+                    raise ValueError("Train ID cannot be empty.")
+
+                if not train_id.isdigit():
+                    raise TypeError("Train ID must be digits only.")
+
+                if train_id not in self.train_dict:
+                    raise ValueError("This train does not exist.")
+
+                break
+            except Exception as e:
+                print(f"Error: {e}")
+
+        t = self.train_dict[train_id]
+
+        while True:
+            try:
+                print("Indicate updating item or press R to return to Employee Panel.\n"
+                      "Press 1 to update Train name\n"
+                      "Press 2 to update Train Line\n"
+                      "Press 3 to update Train Mean Speed\n"
+                      "Press 4 to update Train Stop Time\n"
+                      "Press 5 to update Train Quality\n"
+                      "Press 6 to update Train Price\n"
+                      "Press 7 to update Train Capacity\n")
+
+                update_num = input().strip().lower()
+
+                if update_num == "r":
+                    return
+
+                if update_num not in ["1", "2", "3", "4", "5", "6", "7"]:
+                    raise ValueError("No valid input.")
+
+                match update_num:
+                    case "1":
+                        new_value = input(
+                            "Enter new value for train name: ").strip().lower()
+
+                        if not new_value:
+                            raise ValueError("New value cannot be empty.")
+
+                        if not new_value.isalpha():
+                            raise TypeError(
+                                "New value must be alphabets only.")
+
+                        t.update_info("train_name", new_value)
+                        print("Train name updated successfully.")
+
+                    case "2":
+                        print("Available train lines:",
+                              ", ".join(self.Line_dict.keys()))
+                        new_value = input(
+                            "Enter new value for train line: ").strip().lower()
+
+                        if not new_value:
+                            raise ValueError("New value cannot be empty.")
+
+                        if new_value not in self.Line_dict.keys():
+                            raise ValueError("This line does not exist.")
+
+                        t.update_info("train_line", new_value)
+                        print("Train line updated successfully.")
+
+                    case "3":
+                        new_value = float(
+                            input("Enter new value for train mean speed: ").strip())
+
+                        if new_value < 0:
+                            raise ValueError("New value cannot be negative.")
+
+                        t.update_info("mean_speed", new_value)
+                        print("Train mean speed updated successfully.")
+
+                    case "4":
+                        new_value = float(
+                            input("Enter new value for train stop time: ").strip())
+
+                        if new_value < 0:
+                            raise ValueError("New value cannot be negative.")
+
+                        t.update_info("stop_time", new_value)
+                        print("Train stop time updated successfully.")
+
+                    case "5":
+                        new_value = input(
+                            "Enter New value for train quality(A/B/C): ").strip().upper()
+                        if not new_value:
+                            raise ValueError("New value cannot be empty.")
+
+                        if new_value not in ["A", "B", "C"]:
+                            raise TypeError(
+                                "New value must be A, B, or C only.")
+
+                        t.update_info("quality", new_value)
+                        print("Train quality updated successfully.")
+
+                    case "6":
+                        new_value = float(
+                            input("Enter new value for train price: ").strip())
+
+                        if new_value < 0:
+                            raise ValueError("New value cannot be negative.")
+
+                        t.update_info("price", new_value)
+                        print("Train price updated successfully.")
+
+                    case "7":
+                        new_value = int(
+                            input("Enter new value for train capacity: ").strip())
+
+                        if new_value < 0:
+                            raise ValueError("New value cannot be negative.")
+
+                        t.update_info("capacity", new_value)
+                        print("Train capacity updated successfully.")
+
+                break
+            except Exception as e:
+                print(f"Error: {e}")
+
+    def delete_train(self):
+        print('You are deleting a train.\n')
+
+        while True:
+            try:
+                if not self.train_dict:
+                    print("There is no train to delete.")
+                    return
+
+                train_id = input(
+                    "Enter train ID to remove or press R to return to Employee Panel.\n").strip().lower()
+
+                if train_id == "r":
+                    return
+
+                if not train_id:
+                    raise ValueError("Train ID cannot be empty.")
+
+                if not train_id.isdigit():
+                    raise TypeError("Train ID must be digits only.")
+
+                if train_id not in self.train_dict:
+                    raise ValueError("Train with this ID does not exist.")
+
+                del self.train_dict[train_id]
+                print(f"Train ID {train_id} deleted successfully.")
+
+                break
+            except Exception as e:
+                print(f"Error: {e}")
+
     def show_trains(self):
         print("\n--- Trains ---")
         if not self.system.trains:
