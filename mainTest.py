@@ -5,6 +5,32 @@ import hashlib
 import datetime
 from BANK import API
 
+class BaseTrain():
+
+    def __init__(self, train_name, train_line, mean_speed, stop_time, quality, price, capacity):
+        self.train_name = train_name
+        self.train_line = train_line
+        self.mean_speed = mean_speed
+        self.stop_time = stop_time
+        self.quality = quality
+        self.price = price
+        self.capacity = capacity
+
+    
+    def update_info(self, update_case, new_value):
+        setattr(self, update_case, new_value)
+
+
+    def __str__(self):
+        return (
+            f"Train Name: {self.train_name}, "
+            f"Train Line: {self.train_line}, "
+            f"Train Mean Speed: {self.mean_speed}, "
+            f"Train Stop Time: {self.stop_time}, "
+            f"Train Quality: {self.quality}, "
+            f"Train Price: {self.price}, "
+            f"Train Capacity: {self.capacity}")    
+
 
 # =========================
 # Regex Validators
@@ -720,7 +746,7 @@ class EmployeePanel:
             print("Invalid capacity.")
             return
 
-        new_train = Train(name, line_name, speed, stop_min, q, price, cap, dep)
+        new_train = BaseTrain(name, line_name, speed, stop_min, q, price, cap)
 
         # ===== Bonus collision check =====
         coll, msg = ScheduleHelper.has_collision(line, new_train)
