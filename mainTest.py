@@ -2,8 +2,6 @@ import re
 import datetime
 import os
 from dataclasses import dataclass
-
-# بانک باید جدا باشد و از فایل BANK.py خوانده شود
 from BANK import API
 
 # ==================== Default Credentials ====================
